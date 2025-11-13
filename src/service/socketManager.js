@@ -9,8 +9,13 @@ import path from 'path';
 const CONNECTION_TYPE = "QR";
 const USE_LATEST_VERSION = true;
 
-class WhatsAppSocket {
-    constructor() {
+export class WhatsAppSocket {
+    constructor(sessionId) {
+        if (!sessionId) {
+            throw new Error("Session ID is required");
+        }
+        this.sessionId = sessionId;
+        this.authDir = path.join('sessions', this.sessionId);
         this.sock = null;
         this.isConnected = false;
         this.isInitializing = false;
@@ -23,6 +28,7 @@ class WhatsAppSocket {
         this.qrRefreshInterval = null;
         this.autoReconnect = true; // ✅ SEMPRE reconectar
         this.connectionState = 'disconnected'; // disconnected, connecting, connected
+        this.qrPromise = null;
     }
 
     async getQrCode() {
@@ -36,6 +42,35 @@ class WhatsAppSocket {
         } catch (error) {
             throw new Error(`Erro ao gerar QR Code: ${error.message}`);
         }
+    }
+
+    waitForQrCode() {
+        // Se já temos um QR, retorna imediatamente
+        if (this.hasPendingQR()) {
+            return Promise.resolve(this.currentQR);
+        }
+
+        // Se uma promise já existe, retorna ela
+        if (this.qrPromise) {
+            return this.qrPromise.promise;
+        }
+
+        // Cria uma nova promise com um timeout
+        const newPromise = {};
+        newPromise.promise = new Promise((resolve, reject) => {
+            newPromise.resolve = resolve;
+
+            // Timeout para evitar que a requisição fique presa para sempre
+            setTimeout(() => {
+                if (this.qrPromise === newPromise) { // Garante que não estamos rejeitando uma promise já resolvida
+                    this.qrPromise = null;
+                    reject(new Error("Timeout: QR Code não gerado em 30 segundos."));
+                }
+            }, 30000); // 30 segundos de timeout
+        });
+
+        this.qrPromise = newPromise;
+        return this.qrPromise.promise;
     }
 
     hasPendingQR() {
@@ -116,7 +151,7 @@ class WhatsAppSocket {
 
     async deleteAuth() {
         try {
-            const authDir = 'auth';
+            const authDir = this.authDir;
 
             try {
                 await fs.access(authDir);
@@ -162,7 +197,7 @@ class WhatsAppSocket {
         logger.info(`🔄 Iniciando conexão WhatsApp (tentativa ${this.connectionAttempts})`);
 
         try {
-            const { state, saveCreds } = await useMultiFileAuthState("auth");
+            const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
             const { version } = await fetchLatestWaWebVersion();
 
             if (USE_LATEST_VERSION) {
@@ -206,6 +241,11 @@ class WhatsAppSocket {
 
                 // ✅ SEMPRE gerar QR Code quando disponível
                 if (qr) {
+                    // Resolve a promise pendente do QR Code
+                    if (this.qrPromise && this.qrPromise.resolve) {
+                        this.qrPromise.resolve(qr);
+                        this.qrPromise = null; // Limpa a promise após o uso
+                    }
                     logger.info("📱 NOVO QR Code gerado - Disponível para escaneamento");
                     this.currentQR = qr;
                     this.lastQRTime = Date.now();
@@ -363,6 +403,3 @@ class WhatsAppSocket {
     }
 }
 
-
-// Singleton
-export const whatsAppSocket = new WhatsAppSocket();
