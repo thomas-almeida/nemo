@@ -1,0 +1,368 @@
+// socketManager.js
+import { makeWASocket, Browsers, useMultiFileAuthState, fetchLatestWaWebVersion, DisconnectReason, delay } from "@whiskeysockets/baileys";
+import qrcode from "qrcode-terminal";
+import logger from "./logger.js";
+import qrcodeBase64 from "qrcode";
+import fs from 'fs/promises';
+import path from 'path';
+
+const CONNECTION_TYPE = "QR";
+const USE_LATEST_VERSION = true;
+
+class WhatsAppSocket {
+    constructor() {
+        this.sock = null;
+        this.isConnected = false;
+        this.isInitializing = false;
+        this.currentQR = null;
+        this.qrCodeBase64 = null;
+        this.reconnectTimeout = null;
+        this.connectionAttempts = 0;
+        this.maxConnectionAttempts = 0; // 0 = ilimitado
+        this.lastQRTime = null;
+        this.qrRefreshInterval = null;
+        this.autoReconnect = true; // ✅ SEMPRE reconectar
+        this.connectionState = 'disconnected'; // disconnected, connecting, connected
+    }
+
+    async getQrCode() {
+        if (!this.currentQR) {
+            throw new Error("QR Code não disponível no momento");
+        }
+
+        try {
+            this.qrCodeBase64 = await qrcodeBase64.toDataURL(this.currentQR);
+            return this.qrCodeBase64;
+        } catch (error) {
+            throw new Error(`Erro ao gerar QR Code: ${error.message}`);
+        }
+    }
+
+    hasPendingQR() {
+        return !this.isConnected && this.currentQR !== null;
+    }
+
+    // ✅ MÉTODO MELHORADO: Disconnect sem parar auto-reconexão
+    async disconnect() {
+        logger.info("🛑 Iniciando desconexão...");
+
+        // Limpa todos os timeouts e intervals
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+
+        if (this.qrRefreshInterval) {
+            clearInterval(this.qrRefreshInterval);
+            this.qrRefreshInterval = null;
+        }
+
+        // Fecha a conexão do socket
+        if (this.sock) {
+            try {
+                await this.sock.logout();
+                logger.info("✅ Logout realizado no servidor WhatsApp");
+            } catch (error) {
+                logger.warn("⚠️ Não foi possível fazer logout no servidor:", error.message);
+            }
+
+            try {
+                await this.sock.end();
+                logger.info("✅ Conexão do socket fechada");
+            } catch (error) {
+                logger.error("❌ Erro ao fechar socket:", error);
+            }
+
+            this.sock = null;
+        }
+
+        // Limpa o estado MAS MANTÉM autoReconnect = true
+        this.isConnected = false;
+        this.isInitializing = false;
+        this.currentQR = null;
+        this.qrCodeBase64 = null;
+        this.connectionState = 'disconnected';
+
+        logger.info("✅ Desconexão concluída - reiniciando em 3 segundos...");
+
+        // ✅ SEMPRE reinicia após disconnect
+        setTimeout(() => {
+            this.init();
+        }, 3000);
+    }
+
+    // ✅ MÉTODO PARA FORÇAR NOVA GERAÇÃO DE QR CODE
+    async forceNewQR() {
+        logger.info("🔄 Forçando geração de novo QR Code...");
+
+        if (this.sock && !this.isConnected) {
+            try {
+                await this.sock.end();
+                this.sock = null;
+            } catch (error) {
+                // Ignora erros de fechamento
+            }
+        }
+
+        this.currentQR = null;
+        this.qrCodeBase64 = null;
+        this.isInitializing = false;
+
+        // Pequeno delay antes de reiniciar
+        setTimeout(() => {
+            this.init();
+        }, 1000);
+    }
+
+    async deleteAuth() {
+        try {
+            const authDir = 'auth';
+
+            try {
+                await fs.access(authDir);
+            } catch {
+                logger.info("📁 Pasta de autenticação não existe");
+                return;
+            }
+
+            const files = await fs.readdir(authDir);
+
+            for (const file of files) {
+                const filePath = path.join(authDir, file);
+                await fs.unlink(filePath);
+                logger.info(`🗑️  Arquivo removido: ${file}`);
+            }
+
+            await fs.rm(authDir, { recursive: true, force: true });
+            logger.info('🧹 Pasta de autenticação removida completamente');
+
+        } catch (error) {
+            logger.error('❌ Erro ao remover autenticação:', error);
+            throw error;
+        }
+    }
+
+    // ✅ MÉTODO PRINCIPAL MELHORADO - SEMPRE DISPONIBILIZA QR CODE
+    async init() {
+        // Previne múltiplas inicializações simultâneas
+        if (this.isInitializing) {
+            logger.info("⏳ Inicialização já em andamento...");
+            return;
+        }
+
+        if (this.isConnected && this.sock) {
+            logger.info("✅ Socket já está conectado");
+            return;
+        }
+
+        this.isInitializing = true;
+        this.connectionState = 'connecting';
+        this.connectionAttempts++;
+
+        logger.info(`🔄 Iniciando conexão WhatsApp (tentativa ${this.connectionAttempts})`);
+
+        try {
+            const { state, saveCreds } = await useMultiFileAuthState("auth");
+            const { version } = await fetchLatestWaWebVersion();
+
+            if (USE_LATEST_VERSION) {
+                logger.info(`📱 Usando versão do WhatsApp Web: ${version.join('.')}`);
+            }
+
+            // ✅ CONFIGURAÇÕES OTIMIZADAS PARA ESTABILIDADE
+            this.sock = makeWASocket({
+                auth: state,
+                browser: Browsers.appropriate("Desktop"),
+                printQRInTerminal: true,
+                version: USE_LATEST_VERSION ? version : undefined,
+                defaultQueryTimeoutMs: 60000,
+                markOnlineOnConnect: false,
+                syncFullHistory: false,
+                connectTimeoutMs: 30000,
+                keepAliveIntervalMs: 10000,
+                maxRetries: 5,
+                emitOwnEvents: true,
+                generateHighQualityLinkPreview: false,
+                // ✅ CONFIGURAÇÕES PARA EVITAR CONFLITOS
+                shouldIgnoreJid: (jid) => jid?.endsWith('@g.us') || jid?.endsWith('@broadcast'),
+                msgRetryCounterMap: {},
+                getMessage: async () => undefined,
+                // ✅ MAIS ESTÁVEL
+                fireInitQueries: true,
+                transactionOpts: {
+                    maxRetries: 3,
+                    delayInMs: 1000
+                }
+            });
+
+            // Salva credenciais quando atualizadas
+            this.sock.ev.on('creds.update', saveCreds);
+
+            // ✅ EVENT HANDLER MELHORADO
+            this.sock.ev.on("connection.update", async (update) => {
+                const { connection, lastDisconnect, qr, isNewLogin, receivedPendingNotifications } = update;
+
+                logger.info(`📊 Estado da Conexão: ${connection}`);
+
+                // ✅ SEMPRE gerar QR Code quando disponível
+                if (qr) {
+                    logger.info("📱 NOVO QR Code gerado - Disponível para escaneamento");
+                    this.currentQR = qr;
+                    this.lastQRTime = Date.now();
+
+                    // Gera QR no terminal
+                    qrcode.generate(qr, { small: true });
+
+                    // Gera base64 para API
+                    try {
+                        this.qrCodeBase64 = await qrcodeBase64.toDataURL(qr);
+                        logger.info("✅ QR Code em base64 gerado com sucesso");
+                    } catch (error) {
+                        logger.error("❌ Erro ao gerar QR Code base64:", error);
+                    }
+
+                    // ✅ AUTO-REFRESH do QR Code a cada 45 segundos
+                    if (this.qrRefreshInterval) {
+                        clearInterval(this.qrRefreshInterval);
+                    }
+
+                    this.qrRefreshInterval = setInterval(() => {
+                        if (!this.isConnected && this.currentQR) {
+                            const qrAge = Date.now() - this.lastQRTime;
+                            if (qrAge > 45000) { // 45 segundos
+                                logger.info("🔄 QR Code expirado - gerando novo automaticamente...");
+                                this.forceNewQR();
+                            }
+                        }
+                    }, 10000); // Verifica a cada 10 segundos
+                }
+
+                switch (connection) {
+                    case "open":
+                        this.isConnected = true;
+                        this.isInitializing = false;
+                        this.connectionState = 'connected';
+                        this.connectionAttempts = 0;
+
+                        if (this.qrRefreshInterval) {
+                            clearInterval(this.qrRefreshInterval);
+                            this.qrRefreshInterval = null;
+                        }
+
+                        logger.info("✅ CONECTADO COM SUCESSO AO WHATSAPP!");
+                        break;
+
+                    case "close":
+                        this.isConnected = false;
+                        this.isInitializing = false;
+                        this.connectionState = 'disconnected';
+
+                        if (this.qrRefreshInterval) {
+                            clearInterval(this.qrRefreshInterval);
+                            this.qrRefreshInterval = null;
+                        }
+
+                        const error = lastDisconnect?.error;
+                        const statusCode = error?.output?.statusCode;
+
+                        logger.error(`❌ Conexão fechada: ${statusCode || 'Unknown'}`);
+
+                        // ✅ LÓGICA DE RECONEXÃO AUTOMÁTICA SEMPRE ATIVA
+                        if (statusCode === DisconnectReason.loggedOut) {
+                            logger.error("🔒 Logout detectado - limpando credenciais...");
+                            await this.deleteAuth();
+                        }
+
+                        // ✅ SEMPRE tenta reconectar, independente do motivo
+                        if (this.autoReconnect) {
+                            const delayTime = Math.min(2000 * Math.pow(1.5, this.connectionAttempts), 30000);
+                            logger.info(`🔄 Reconectando automaticamente em ${delayTime / 1000} segundos...`);
+
+                            this.reconnectTimeout = setTimeout(() => {
+                                this.reconnectTimeout = null;
+                                this.init();
+                            }, delayTime);
+                        }
+                        break;
+
+                    case "connecting":
+                        logger.info("🔄 Conectando ao WhatsApp...");
+                        this.connectionState = 'connecting';
+                        break;
+                }
+            });
+
+            // ✅ EVENTOS ADICIONAIS PARA MELHOR CONTROLE
+            this.sock.ev.on("creds.update", () => {
+                logger.info("🔑 Credenciais atualizadas");
+            });
+
+            this.sock.ev.on("messages.upsert", () => {
+                // Mantém a conexão ativa
+            });
+
+        } catch (error) {
+            this.isInitializing = false;
+            this.connectionState = 'disconnected';
+            logger.error("💥 Erro crítico na inicialização:", error);
+
+            // ✅ SEMPRE tenta novamente em caso de erro
+            if (this.autoReconnect) {
+                const delayTime = Math.min(5000 * this.connectionAttempts, 30000);
+                logger.info(`🔄 Tentando novamente em ${delayTime / 1000} segundos...`);
+
+                this.reconnectTimeout = setTimeout(() => {
+                    this.reconnectTimeout = null;
+                    this.init();
+                }, delayTime);
+            }
+        }
+    }
+
+    // ✅ MÉTODO PARA ATIVAR/DESATIVAR AUTO-RECONEXÃO
+    setAutoReconnect(enabled) {
+        this.autoReconnect = enabled;
+        logger.info(`🔄 Auto-reconexão ${enabled ? 'ativada' : 'desativada'}`);
+    }
+
+    // Função para enviar mensagens
+    async sendMessage(number, message) {
+
+        if (!this.sock || !this.isConnected) {
+            throw new Error("WhatsApp não está conectado");
+        }
+
+        const formattedNumber =
+            number.includes('@s.whatsapp.net')
+                ? number
+                : `${number}@s.whatsapp.net`;
+
+        console.log("enviando para: ", formattedNumber)
+
+        return this.sock.sendMessage(formattedNumber, { text: message });
+    }
+
+    // ✅ Fechar conexão completamente (sem auto-reconexão)
+    async close() {
+        this.autoReconnect = false;
+        await this.disconnect();
+    }
+
+    // ✅ Status detalhado
+    getDetailedStatus() {
+        return {
+            isConnected: this.isConnected,
+            isInitializing: this.isInitializing,
+            connectionState: this.connectionState,
+            hasPendingQR: this.hasPendingQR(),
+            connectionAttempts: this.connectionAttempts,
+            autoReconnect: this.autoReconnect,
+            lastQRTime: this.lastQRTime,
+            qrAge: this.lastQRTime ? Date.now() - this.lastQRTime : null
+        };
+    }
+}
+
+
+// Singleton
+export const whatsAppSocket = new WhatsAppSocket();
