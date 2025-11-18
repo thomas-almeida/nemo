@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
-import { createUser } from "./controller/userController.js";
+import { createUser, getUserById } from "./controller/userController.js";
 
 const api = Router();
 
@@ -15,6 +15,7 @@ api.post("/:sessionId/disconnect", disconnect)
 
 // users
 api.post("/user", createUser)
+api.get("/user/:id", getUserById)
 
 // default route
 api.get("/", (req, res) => {

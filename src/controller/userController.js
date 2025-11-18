@@ -34,3 +34,20 @@ export const createUser = async (req, res) => {
         });
     }
 }
+
+export const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id);
+        res.status(200).json({
+            success: true,
+            user
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: "Falha ao obter usuário"
+        });
+    }
+}

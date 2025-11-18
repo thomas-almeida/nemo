@@ -3,10 +3,17 @@ import * as sessionManager from "../service/sessionManager.js";
 export const sendMessage = async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const { number, message } = req.body;
+        const { number, message, image, video, document } = req.body;
+
+        // Validações iniciais
+        if (!number) {
+            return res.status(400).json({
+                success: false,
+                error: "Número é obrigatório"
+            });
+        }
 
         const session = sessionManager.getSession(sessionId);
-
         if (!session) {
             return res.status(404).json({
                 success: false,
@@ -22,24 +29,49 @@ export const sendMessage = async (req, res) => {
             });
         }
 
-        if (!number || !message) {
-            return res.status(400).json({
-                success: false,
-                error: "Número e mensagem são obrigatórios"
-            });
+        // Prepara os dados para envio
+        const messageData = { 
+            number,
+            text: message || '' // Texto é opcional se for enviar apenas mídia
+        };
+
+        // Adiciona vídeo se existir (tem prioridade sobre imagem)
+        if (video) {
+            messageData.video = typeof video === 'string' ? { url: video } : video;
+        }
+        // Se não tiver vídeo, adiciona imagem se existir
+        else if (image) {
+            messageData.image = typeof image === 'string' ? { url: image } : image;
         }
 
-        const result = await session.sendMessage(number, message);
+        // Adiciona documento se existir (pode ser enviado junto com imagem ou vídeo)
+        if (document) {
+            messageData.document = typeof document === 'string' ? { url: document } : document;
+        }
+
+        // Envia a mensagem
+        const result = await session.sendMessage(messageData);
+        
+        // Determina o tipo de mídia para a mensagem de sucesso
+        let mediaType = '';
+        if (video) mediaType = 'Vídeo';
+        else if (image) mediaType = 'Imagem';
+        else if (document) mediaType = 'Documento';
+        
         res.json({
             success: true,
-            result,
-            message: "Mensagem enviada com sucesso"
+            data: result,
+            message: mediaType 
+                ? `${mediaType} enviado com sucesso` 
+                : "Mensagem enviada com sucesso"
         });
+
     } catch (error) {
+        console.error('Erro no controlador ao enviar mensagem:', error);
         res.status(500).json({
             success: false,
             error: error.message,
-            message: "Falha ao enviar mensagem"
+            message: "Falha ao processar a requisição"
         });
     }
 };

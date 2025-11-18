@@ -365,22 +365,100 @@ export class WhatsAppSocket {
         logger.info(`🔄 Auto-reconexão ${enabled ? 'ativada' : 'desativada'}`);
     }
 
-    // Função para enviar mensagens
-    async sendMessage(number, message) {
-
+    // ✅ MÉTODO PARA ENVIAR MENSAGENS
+    async sendMessage({ number, text, image, video, document }) {
         if (!this.sock || !this.isConnected) {
             throw new Error("WhatsApp não está conectado");
         }
 
-        const formattedNumber =
-            number.includes('@s.whatsapp.net')
-                ? number
-                : `${number}@s.whatsapp.net`;
+        // Verifica se o número foi fornecido
+        if (!number) {
+            throw new Error("Número de telefone é obrigatório");
+        }
 
-        console.log("enviando para: ", formattedNumber)
+        const jid = number.includes('@s.whatsapp.net')
+            ? number
+            : `${number}@s.whatsapp.net`;
 
-        return this.sock.sendMessage(formattedNumber, { text: message });
+        try {
+            // Função auxiliar para processar mídia
+            const processMedia = (media, type) => {
+                if (!media) return null;
+                
+                const options = {
+                    mimetype: media.mimetype || 
+                        (type === 'image' ? 'image/jpeg' : 
+                         type === 'video' ? 'video/mp4' : 
+                         'application/octet-stream'),
+                    caption: text || media.caption || ''
+                };
+
+                // Define o nome do arquivo padrão
+                if (media.fileName) {
+                    options.fileName = media.fileName;
+                } else if (type === 'document') {
+                    options.fileName = 'documento';
+                } else if (type === 'video') {
+                    options.fileName = 'video.mp4';
+                } else if (type === 'image') {
+                    options.fileName = 'imagem.jpg';
+                }
+
+                // Se for uma URL
+                if (media.url) {
+                    console.log(`Enviando ${type} por URL:`, media.url);
+                    return { [type]: { url: media.url }, ...options };
+                }
+                // Se for base64
+                else if (media.base64) {
+                    console.log(`Enviando ${type} em base64`);
+                    const fileBuffer = Buffer.from(
+                        media.base64.replace(/^data:\w+\/\w+;base64,/, ''),
+                        'base64'
+                    );
+                    return { [type]: fileBuffer, ...options };
+                }
+                // Se for um buffer
+                else if (media.buffer) {
+                    console.log(`Enviando ${type} a partir de buffer`);
+                    return { [type]: media.buffer, ...options };
+                }
+                
+                throw new Error(`Formato de ${type} não suportado`);
+            };
+
+            // Se tiver vídeo, envia como mensagem de vídeo
+            if (video) {
+                console.log('Enviando vídeo:', video);
+                const videoMessage = processMedia(video, 'video');
+                return await this.sock.sendMessage(jid, videoMessage);
+            }
+            // Se tiver imagem, envia como mensagem de imagem
+            else if (image) {
+                console.log('Enviando imagem:', image);
+                const imageMessage = processMedia(image, 'image');
+                return await this.sock.sendMessage(jid, imageMessage);
+            }
+            // Se tiver documento, envia como mensagem de documento
+            else if (document) {
+                console.log('Enviando documento:', document);
+                const docMessage = processMedia(document, 'document');
+                return await this.sock.sendMessage(jid, docMessage);
+            }
+
+            // Se não tiver mídia, envia apenas texto
+            if (text) {
+                return await this.sock.sendMessage(jid, { text });
+            }
+
+            throw new Error('Nenhum conteúdo para enviar');
+            
+        } catch (error) {
+            console.error('Erro ao enviar mensagem:', error);
+            throw error;
+        }
     }
+
 
     // ✅ Fechar conexão completamente (sem auto-reconexão)
     async close() {
