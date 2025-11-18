@@ -2,7 +2,7 @@ import { Router } from "express";
 import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
 import { createUser, getUserById } from "./controller/userController.js";
-import { createCustomer, getCustomerById } from "./controller/customerController.js";
+import { createCustomer, getCustomerById, getAllCustomers } from "./controller/customerController.js";
 
 const api = Router();
 
@@ -20,7 +20,8 @@ api.get("/user/:id", getUserById)
 
 // customers
 api.post("/customer", createCustomer)
-api.get("/customer/:id", getCustomerById)
+api.get("/customer/:id/:userId", getCustomerById)
+api.get("/customer/:userId", getAllCustomers)
 
 // default route
 api.get("/", (req, res) => {

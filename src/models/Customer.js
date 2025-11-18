@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const CustomerSchema = new mongoose.Schema({
     name: String,
     phone: String,
+    owner: String,
     createdAt: { type: Date, default: Date.now },
     followUps: [
         {
