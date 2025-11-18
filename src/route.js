@@ -3,6 +3,21 @@ import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
 import { createUser, getUserById } from "./controller/userController.js";
 import { createCustomer, getCustomerById, getAllCustomers } from "./controller/customerController.js";
+import {
+    createCustomerList,
+    getCustomerLists,
+    getCustomerListById,
+    updateCustomerList,
+    deleteCustomerList
+} from "./controller/customerListController.js";
+
+import {
+    createProject,
+    getProjects,
+    getProjectById,
+    updateProject,
+    deleteProject
+} from "./controller/projectController.js";
 
 const api = Router();
 
@@ -23,9 +38,23 @@ api.post("/customer", createCustomer)
 api.get("/customer/:id/:userId", getCustomerById)
 api.get("/customer/:userId", getAllCustomers)
 
+// customer lists
+api.post("/customer-list", createCustomerList);
+api.get("/customer-list/owner/:ownerId", getCustomerLists);
+api.get("/customer-list/:id", getCustomerListById);
+api.put("/customer-list/:id", updateCustomerList);
+api.delete("/customer-list/:id", deleteCustomerList);
+
+// projects
+api.post("/project", createProject);
+api.get("/project/:id", getProjects);
+api.get("/project/:id", getProjectById);
+api.put("/project/:id", updateProject);
+api.delete("/project/:id", deleteProject);
+
 // default route
 api.get("/", (req, res) => {
-    res.send("Hello World!");
+    res.send("Nemo API is running!");
 });
 
 export default api;
