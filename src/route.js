@@ -3,6 +3,7 @@ import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
 import { createUser, getUserById } from "./controller/userController.js";
 import { createCustomer, getCustomerById, getAllCustomers, updateCustomer, deleteCustomer} from "./controller/customerController.js";
+import { createMessage, getMessages } from "./controller/messageController.js";
 import {
     createCustomerList,
     getCustomerLists,
@@ -52,9 +53,13 @@ api.delete("/customer-list/:id", deleteCustomerList);
 // projects
 api.post("/project", createProject);
 api.get("/project/:id", getProjects);
-api.get("/project/:id", getProjectById);
+api.get("/project/by-id/:id", getProjectById);
 api.put("/project/:id", updateProject);
 api.delete("/project/:id", deleteProject);
+
+// messages
+api.post("/message", createMessage);
+api.get("/message/:ownerId", getMessages);
 
 // default route
 api.get("/", (req, res) => {

@@ -4,8 +4,6 @@ import mongoose from "mongoose";
 const BuildingUnit = {
     footage: Number,
     price: Number,
-    status: String,
-    details: String,
 }
 
 const LocationItem = {
@@ -30,6 +28,8 @@ const Owner = {
     role: String,
 }
 
+const TypeList = "HIS" | "R2V" | "HMP" | "NR";
+
 const ProjectSchema = new mongoose.Schema({
     info: {
         name: { type: String, required: true },
@@ -39,6 +39,10 @@ const ProjectSchema = new mongoose.Schema({
         launchDate: { type: Date, default: Date.now },
         releaseDate: { type: Date, default: Date.now },
         details: { type: String, default: "" }
+    },
+    type: {
+        type: [TypeList],
+        required: true,
     },
     owner: {
         type: [Owner],

@@ -2,7 +2,7 @@ import Project from "../models/Projects.js";
 
 // Create a new project
 export const createProject = async (req, res) => {
-    const { info, units = [], location = [], attachments = [], copyMessages = [], customersLists = [], owner } = req.body;
+    const { info, units = [], location = [], attachments = [], copyMessages = [], customersLists = [], type, owner } = req.body;
 
     if (!info.name || !info.address || !info.developer || !info.company) {
         return res.status(400).json({
@@ -19,6 +19,7 @@ export const createProject = async (req, res) => {
             attachments,
             copyMessages,
             customersLists,
+            type,
             owner
         });
 
@@ -37,11 +38,10 @@ export const createProject = async (req, res) => {
 
 // Get all projects
 export const getProjects = async (req, res) => {
-
-    const id = req.params;
+    const { id } = req.params;
 
     try {
-        const projects = await Project.find({ owner: { id } });
+        const projects = await Project.find({ 'owner.id': id });
         res.status(200).json({
             success: true,
             count: projects.length,
@@ -58,9 +58,9 @@ export const getProjects = async (req, res) => {
 
 // Get a single project
 export const getProjectById = async (req, res) => {
-    const id = req.params;
+    const { id } = req.params;
     try {
-        const project = await Project.findById(id).where({ owner: { id } });
+        const project = await Project.findById(id);
         if (!project) {
             return res.status(404).json({
                 success: false,
@@ -83,7 +83,7 @@ export const getProjectById = async (req, res) => {
 export const updateProject = async (req, res) => {
     const { id } = req.params;
     const { userId, userRole } = req.body; // Assuming these are passed in the request body
-    
+
     if (!userId || !userRole) {
         return res.status(400).json({
             success: false,
@@ -94,7 +94,7 @@ export const updateProject = async (req, res) => {
     try {
         // First, find the project to check ownership
         const project = await Project.findById(id);
-        
+
         if (!project) {
             return res.status(404).json({
                 success: false,
@@ -103,7 +103,7 @@ export const updateProject = async (req, res) => {
         }
 
         // Check if user is an owner with ADMIN role
-        const isAdminOwner = project.owner.some(owner => 
+        const isAdminOwner = project.owner.some(owner =>
             owner.id === userId && owner.role === 'ADMIN'
         );
 
@@ -116,14 +116,14 @@ export const updateProject = async (req, res) => {
 
         // If user is authorized, proceed with the update
         const updatedProject = await Project.findByIdAndUpdate(
-            id, 
-            { 
+            id,
+            {
                 ...req.body,
                 'info.updatedAt': Date.now() // Update the last modified timestamp
-            }, 
+            },
             { new: true, runValidators: true }
         );
-        
+
         res.status(200).json({
             success: true,
             data: updatedProject
@@ -140,7 +140,7 @@ export const updateProject = async (req, res) => {
 export const deleteProject = async (req, res) => {
     const { id } = req.params;
     const { userId, userRole } = req.body; // Assuming these are passed in the request body
-    
+
     if (!userId || !userRole) {
         return res.status(400).json({
             success: false,
@@ -151,7 +151,7 @@ export const deleteProject = async (req, res) => {
     try {
         // First, find the project to check ownership
         const project = await Project.findById(id);
-        
+
         if (!project) {
             return res.status(404).json({
                 success: false,
