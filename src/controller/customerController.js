@@ -75,3 +75,53 @@ export const getAllCustomers = async (req, res) => {
         });
     }
 }
+
+export const updateCustomer = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const customer = await Customer.findByIdAndUpdate(id, req.body, { new: true });
+
+        if (!customer) {
+            return res.status(404).json({
+                success: false,
+                error: "Cliente não encontrado"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: customer
+        });
+    } catch (error) {
+        console.error("Erro ao atualizar cliente:", error);
+        res.status(500).json({
+            success: false,
+            error: "Erro ao atualizar cliente"
+        });
+    }
+}
+
+export const deleteCustomer = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const customer = await Customer.findByIdAndDelete(id);
+
+        if (!customer) {
+            return res.status(404).json({
+                success: false,
+                error: "Cliente não encontrado"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: customer
+        });
+    } catch (error) {
+        console.error("Erro ao deletar cliente:", error);
+        res.status(500).json({
+            success: false,
+            error: "Erro ao deletar cliente"
+        });
+    }
+}

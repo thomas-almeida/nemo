@@ -2,13 +2,14 @@ import { Router } from "express";
 import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
 import { createUser, getUserById } from "./controller/userController.js";
-import { createCustomer, getCustomerById, getAllCustomers } from "./controller/customerController.js";
+import { createCustomer, getCustomerById, getAllCustomers, updateCustomer, deleteCustomer} from "./controller/customerController.js";
 import {
     createCustomerList,
     getCustomerLists,
     getCustomerListById,
     updateCustomerList,
-    deleteCustomerList
+    deleteCustomerList,
+    addCustomerToCustomerList
 } from "./controller/customerListController.js";
 
 import {
@@ -37,11 +38,14 @@ api.get("/user/:id", getUserById)
 api.post("/customer", createCustomer)
 api.get("/customer/:id/:userId", getCustomerById)
 api.get("/customer/:userId", getAllCustomers)
+api.put("/customer/:id", updateCustomer)
+api.delete("/customer/:id", deleteCustomer)
 
 // customer lists
 api.post("/customer-list", createCustomerList);
+api.post("/customer-list/:id/customer", addCustomerToCustomerList);
 api.get("/customer-list/owner/:ownerId", getCustomerLists);
-api.get("/customer-list/:id", getCustomerListById);
+api.get("/customer-list/:id/:userId", getCustomerListById);
 api.put("/customer-list/:id", updateCustomerList);
 api.delete("/customer-list/:id", deleteCustomerList);
 
