@@ -4,6 +4,22 @@ const CustomerSchema = new mongoose.Schema({
     name: String,
     phone: String,
     owner: String,
+    customerLists: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "CustomerList",
+            required: false,
+            default: []
+        }
+    ],
+    projects: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Project",
+            required: false,
+            default: []
+        }
+    ],
     createdAt: { type: Date, default: Date.now },
     followUps: [
         {
