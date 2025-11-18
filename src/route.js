@@ -2,6 +2,7 @@ import { Router } from "express";
 import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
 import { createUser, getUserById } from "./controller/userController.js";
+import { createCustomer, getCustomerById } from "./controller/customerController.js";
 
 const api = Router();
 
@@ -16,6 +17,10 @@ api.post("/:sessionId/disconnect", disconnect)
 // users
 api.post("/user", createUser)
 api.get("/user/:id", getUserById)
+
+// customers
+api.post("/customer", createCustomer)
+api.get("/customer/:id", getCustomerById)
 
 // default route
 api.get("/", (req, res) => {
