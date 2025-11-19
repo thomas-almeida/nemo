@@ -2,8 +2,10 @@ import { Router } from "express";
 import { sendMessage } from "./controller/senderController.js";
 import { getStatus, getQrCode, disconnect } from "./controller/connectionController.js";
 import { createUser, getUserById } from "./controller/userController.js";
-import { createCustomer, getCustomerById, getAllCustomers, updateCustomer, deleteCustomer} from "./controller/customerController.js";
+import { createCustomer, getCustomerById, getAllCustomers, updateCustomer, deleteCustomer } from "./controller/customerController.js";
 import { createMessage, getMessages } from "./controller/messageController.js";
+import { uploadAttachment, getAttachments, getAuthUrl, handleCallback } from "./controller/attachmentController.js";
+import upload from "./middleware/multer.js";
 import {
     createCustomerList,
     getCustomerLists,
@@ -60,6 +62,12 @@ api.delete("/project/:id", deleteProject);
 // messages
 api.post("/message", createMessage);
 api.get("/message/:ownerId", getMessages);
+
+// attachments
+api.post("/attachment", upload.single("file"), uploadAttachment);
+api.get("/attachment/:ownerId", getAttachments);
+api.get("/attachment/auth-url", getAuthUrl);
+api.get("/attachment/callback", handleCallback);
 
 // default route
 api.get("/", (req, res) => {

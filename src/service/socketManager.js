@@ -393,9 +393,11 @@ export class WhatsAppSocket {
                     caption: text || media.caption || ''
                 };
 
-                // Define o nome do arquivo padrão
-                if (media.fileName) {
-                    options.fileName = media.fileName;
+                // Usa o filename fornecido ou um padrão baseado no tipo
+                if (media.filename) {
+                    options.fileName = media.filename;
+                } else if (media.fileName) {
+                    options.fileName = media.fileName; // Para compatibilidade
                 } else if (type === 'document') {
                     options.fileName = 'documento';
                 } else if (type === 'video') {
@@ -449,6 +451,12 @@ export class WhatsAppSocket {
             // Se não tiver mídia, envia apenas texto
             if (text) {
                 return await this.sock.sendMessage(jid, { text });
+            }
+            
+            // Se chegou até aqui, verifica se pelo menos um tipo de mídia foi processado
+            if (image || video || document) {
+                // Já foi enviado como mensagem de mídia, não precisa fazer nada
+                return { status: 'sent', message: 'Media message sent successfully' };
             }
 
             throw new Error('Nenhum conteúdo para enviar');
