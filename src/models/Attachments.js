@@ -6,7 +6,7 @@ const AttachmentsSchema = new mongoose.Schema({
         required: true
     },
     ownerId: { type: String, required: true },
-    projectId: {type: String, required: true},
+    projectId: { type: String, required: true },
     type: {
         type: String,
         required: true
@@ -14,6 +14,10 @@ const AttachmentsSchema = new mongoose.Schema({
     fileUrl: {
         type: String,
         required: true
+    },
+    publicLink: {
+        type: String,
+        default: ""
     }
 })
 

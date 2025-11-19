@@ -106,11 +106,18 @@ export const uploadAttachment = async (req, res) => {
       },
     });
 
+    // Determinar o publicLink com base no tipo de arquivo
+    const isImage = file.mimetype.startsWith('image/');
+    const publicLink = isImage 
+      ? `https://lh3.googleusercontent.com/d/${fileId}`
+      : `https://drive.google.com/uc?export=download&id=${fileId}`;
+
     // Salvar no MongoDB
     const attachment = new Attachments({
       name: response.data.name,
       type: file.mimetype,
       fileUrl: fileUrl,
+      publicLink: publicLink,
       ownerId: ownerId,
       projectId: projectId,
     });
