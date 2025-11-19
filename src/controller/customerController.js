@@ -76,10 +76,15 @@ export const getAllCustomers = async (req, res) => {
     }
 }
 
+import FollowUp from "../models/FollowUps.js";
+
 export const updateCustomer = async (req, res) => {
     try {
         const { id } = req.params;
-        const customer = await Customer.findByIdAndUpdate(id, req.body, { new: true });
+        const { followUps, ...updateData } = req.body;
+        
+        // Atualiza os dados básicos do cliente
+        const customer = await Customer.findByIdAndUpdate(id, updateData, { new: true });
 
         if (!customer) {
             return res.status(404).json({
@@ -88,15 +93,30 @@ export const updateCustomer = async (req, res) => {
             });
         }
 
+        // Se houver followUps no body, cria os registros e adiciona as referências
+        if (followUps && Array.isArray(followUps)) {
+            for (const followUpData of followUps) {
+                const newFollowUp = new FollowUp({
+                    ...followUpData,
+                    customer: id
+                });
+                const savedFollowUp = await newFollowUp.save();
+                customer.followUps.push(savedFollowUp._id);
+            }
+            await customer.save();
+        }
+
+        const updatedCustomer = await Customer.findById(id).populate('followUps');
+
         res.status(200).json({
             success: true,
-            data: customer
+            data: updatedCustomer
         });
     } catch (error) {
         console.error("Erro ao atualizar cliente:", error);
         res.status(500).json({
             success: false,
-            error: "Erro ao atualizar cliente"
+            error: "Erro ao atualizar cliente: " + error.message
         });
     }
 }

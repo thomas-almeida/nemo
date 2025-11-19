@@ -5,6 +5,8 @@ const FollowUpSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Customer"
     },
+    labels: { type: [String], default: [] },
+    stage: { type: String, default: "Aguardando Contato" },
     message: String,
     createdAt: { type: Date, default: Date.now }
 });
