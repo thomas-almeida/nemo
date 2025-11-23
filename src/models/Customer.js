@@ -21,12 +21,11 @@ const CustomerSchema = new mongoose.Schema({
         }
     ],
     createdAt: { type: Date, default: Date.now },
-    followUps: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "FollowUp"
-        }
-    ]
+    followUps: { type: [String], default: [] },
+    labels: { type: [String], default: [] },
+    stage: { type: String, default: "Aguardando Contato" },
+    message: String,
+    createdAt: { type: Date, default: Date.now }
 });
 
 const Customer = mongoose.model("Customer", CustomerSchema);

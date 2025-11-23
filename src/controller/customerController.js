@@ -76,37 +76,29 @@ export const getAllCustomers = async (req, res) => {
     }
 }
 
-import FollowUp from "../models/FollowUps.js";
-
 export const updateCustomer = async (req, res) => {
     try {
         const { id } = req.params;
-        const { followUps, ...updateData } = req.body;
         
-        // Atualiza os dados básicos do cliente
-        const customer = await Customer.findByIdAndUpdate(id, updateData, { new: true });
-
-        if (!customer) {
+        // Verifica se o cliente existe
+        const existingCustomer = await Customer.findById(id);
+        
+        if (!existingCustomer) {
             return res.status(404).json({
                 success: false,
                 error: "Cliente não encontrado"
             });
         }
 
-        // Se houver followUps no body, cria os registros e adiciona as referências
-        if (followUps && Array.isArray(followUps)) {
-            for (const followUpData of followUps) {
-                const newFollowUp = new FollowUp({
-                    ...followUpData,
-                    customer: id
-                });
-                const savedFollowUp = await newFollowUp.save();
-                customer.followUps.push(savedFollowUp._id);
-            }
-            await customer.save();
-        }
-
-        const updatedCustomer = await Customer.findById(id).populate('followUps');
+        // Remove campos que não devem ser atualizados
+        const { owner, _id, __v, ...updateData } = req.body;
+        
+        // Atualiza apenas os campos que foram fornecidos no body
+        const updatedCustomer = await Customer.findByIdAndUpdate(
+            id,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        );
 
         res.status(200).json({
             success: true,
@@ -114,6 +106,15 @@ export const updateCustomer = async (req, res) => {
         });
     } catch (error) {
         console.error("Erro ao atualizar cliente:", error);
+        
+        // Melhora as mensagens de erro de validação
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                error: `Erro de validação: ${error.message}`
+            });
+        }
+        
         res.status(500).json({
             success: false,
             error: "Erro ao atualizar cliente: " + error.message

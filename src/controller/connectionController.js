@@ -39,7 +39,7 @@ export const getQrCode = async (req, res) => {
         const session = await sessionManager.createSession(sessionId);
 
         if (session.isConnected) {
-            return res.json({
+            return res.status(200).json({
                 success: true,
                 status: "connected",
                 message: "WhatsApp já está conectado nesta sessão."
@@ -50,7 +50,7 @@ export const getQrCode = async (req, res) => {
         await session.waitForQrCode();
         const qrCodeBase64 = await session.getQrCode();
 
-        res.json({
+        res.status(200).json({
             success: true,
             qrCode: qrCodeBase64,
             status: "ready",
@@ -62,8 +62,8 @@ export const getQrCode = async (req, res) => {
         res.status(500).json({
             success: false,
             error: error.message,
-            message: error.message.includes("Timeout") ? 
-                "Falha ao gerar QR Code. Tente novamente." : 
+            message: error.message.includes("Timeout") ?
+                "Falha ao gerar QR Code. Tente novamente." :
                 "Erro interno ao gerar QR Code."
         });
     }
