@@ -44,7 +44,7 @@ api.get("/customer/:userId", getAllCustomers)
 api.put("/customer/:id", updateCustomer)
 api.delete("/customer/:id", deleteCustomer)
 
-// customer lists
+// customer lists ii
 api.post("/customer-list", createCustomerList);
 api.post("/customer-list/:id/customer", addCustomerToCustomerList);
 api.get("/customer-list/owner/:ownerId", getCustomerLists);
