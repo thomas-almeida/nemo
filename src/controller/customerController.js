@@ -58,10 +58,26 @@ export const getCustomerById = async (req, res) => {
     }
 }
 
+
+
+/**
+ * Get all customers for the specified user ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 export const getAllCustomers = async (req, res) => {
     try {
         const { userId } = req.params;
-        const customers = await Customer.find({ owner: userId });
+        
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: "ID do usuário não fornecido"
+            });
+        }
+
+        // Find customers where the owner field matches the provided userId
+        const customers = await Customer.find({ owner: userId })
 
         res.status(200).json({
             success: true,
