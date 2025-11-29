@@ -1,8 +1,11 @@
 import Project from "../models/Projects.js";
+import gemini from "../utils/gemini.js";
+import { extractPdfText } from "../utils/pdfParse.js";
+import { whatsInsideIn } from "../utils/prompts.js";
 
 // Create a new project
 export const createProject = async (req, res) => {
-    const { info, units = [], location = [], attachments = [], copyMessages = [], customersLists = [], type, owner } = req.body;
+    const { info, owner } = req.body;
 
     if (!info.name || !info.address || !info.developer || !info.company) {
         return res.status(400).json({
@@ -10,6 +13,8 @@ export const createProject = async (req, res) => {
             error: 'Name, address, developer and company are required'
         });
     }
+
+    //AI vai pegar book e vai preencher tudo sozinha
 
     try {
         const newProject = await Project.create({
@@ -32,6 +37,43 @@ export const createProject = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to create project'
+        });
+    }
+};
+
+export const callGemini = async (req, res) => {
+    try {
+        const { name, owner } = req.body;
+        const bookFile = req.file;
+
+        if (!bookFile) {
+            return res.status(400).json({
+                success: false,
+                error: "Envie um PDF do book do empreendimento"
+            });
+        }
+
+        // ✅ Extrai texto do PDF
+        const bookText = await extractPdfText(bookFile.buffer);
+
+        // ✅ Envia pro Gemini
+        const result = await gemini(whatsInsideIn(bookText, owner, name));
+        const aiResponse = result;
+
+        const parsedData = JSON.parse(aiResponse);
+        const newProject = await Project.create(parsedData)
+
+        res.status(200).json({
+            success: true,
+            data: newProject
+        });
+
+    } catch (error) {
+        console.error("Error parsing PDF:", error);
+
+        return res.status(500).json({
+            success: false,
+            error: "Erro criar projeto com IA"
         });
     }
 };

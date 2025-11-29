@@ -2,13 +2,13 @@ import mongoose from "mongoose";
 
 
 const BuildingUnit = {
-    footage: Number,
-    price: Number,
+    footage: String,
+    price: String,
 }
 
 const LocationItem = {
     name: String,
-    distance: Number,
+    distance: String,
 }
 
 const AttachmentItem = {

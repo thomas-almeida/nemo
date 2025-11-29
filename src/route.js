@@ -20,7 +20,8 @@ import {
     getProjects,
     getProjectById,
     updateProject,
-    deleteProject
+    deleteProject,
+    callGemini
 } from "./controller/projectController.js";
 
 const api = Router();
@@ -53,7 +54,7 @@ api.put("/customer-list/:id", updateCustomerList);
 api.delete("/customer-list/:id", deleteCustomerList);
 
 // projects
-api.post("/project", createProject);
+api.post("/project", upload.single("book"), callGemini);
 api.get("/project/:id", getProjects);
 api.get("/project/by-id/:id", getProjectById);
 api.put("/project/:id", updateProject);
