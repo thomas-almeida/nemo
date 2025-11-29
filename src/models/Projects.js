@@ -33,9 +33,9 @@ const TypeList = "HIS" | "R2V" | "HMP" | "NR";
 const ProjectSchema = new mongoose.Schema({
     info: {
         name: { type: String, required: true },
-        address: { type: String, required: true },
-        developer: { type: String, required: true },
-        company: { type: String, required: true },
+        address: { type: String, default: null },
+        developer: { type: String, default: null },
+        company: { type: String, default: null },
         launchDate: { type: Date, default: Date.now },
         releaseDate: { type: Date, default: Date.now },
         details: { type: String, default: "" }
